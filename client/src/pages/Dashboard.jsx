@@ -21,9 +21,9 @@ const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', INR: '₹', GBP: '£' };
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning, Anish';
-  if (hour < 18) return 'Good afternoon, Anish';
-  return 'Good evening, Anish';
+  if (hour < 12) return 'Good Morning, Anish';
+  if (hour < 18) return 'Good Afternoon, Anish';
+  return 'Good Evening, Anish';
 }
 
 export default function Dashboard() {
@@ -146,8 +146,8 @@ export default function Dashboard() {
                   <div className="relative w-[220px] h-[220px] shrink-0">
                     <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
-                        <Pie data={chartData} dataKey="value" innerRadius={62} outerRadius={98} stroke="none" paddingAngle={2}>
-                          {chartData.map((entry, index) => (
+                        <Pie data={chartData.filter(item => item.value > 0)} dataKey="value" innerRadius={62} outerRadius={98} stroke="none" paddingAngle={2}>
+                          {chartData.filter(item => item.value > 0).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>

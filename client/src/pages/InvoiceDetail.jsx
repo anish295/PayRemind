@@ -156,18 +156,21 @@ export default function InvoiceDetail() {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-full">
-        <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] shrink-0">
-          <div className="max-w-[1200px] w-full mx-auto py-[16px] px-[32px] flex items-center gap-4">
-             <div className="skeleton w-[24px] h-[24px] rounded-md"></div>
-             <div className="h-6 w-px bg-[var(--color-border)]"></div>
-             <div className="skeleton h-6 w-48 rounded-[var(--radius-sm)]"></div>
+      <div className="invoice-detail-page">
+        <div className="invoice-detail-topbar">
+          <div className="invoice-detail-topbar-inner">
+            <div className="invoice-detail-topbar-left">
+              <div className="skeleton w-9 h-9 rounded-lg" />
+              <div className="skeleton h-6 w-px" />
+              <div className="skeleton h-7 w-56 rounded-lg" />
+            </div>
           </div>
         </div>
-        <div className="max-w-[1200px] w-full mx-auto py-[28px] px-[32px] flex-1">
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="skeleton h-[600px] lg:w-[65%] rounded-[var(--radius-md)]"></div>
-            <div className="skeleton h-[400px] lg:w-[35%] rounded-[var(--radius-md)]"></div>
+        <div className="invoice-detail-body">
+          <div className="skeleton h-10 w-full max-w-2xl rounded-xl mb-6" />
+          <div className="invoice-detail-grid">
+            <div className="skeleton h-[560px] rounded-2xl invoice-detail-main" />
+            <div className="skeleton h-[400px] rounded-2xl invoice-detail-sidebar" />
           </div>
         </div>
       </div>
@@ -214,205 +217,245 @@ export default function InvoiceDetail() {
   };
 
   const getRelativeTime = (dateStr) => {
-    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
     const daysDifference = Math.round((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
     if (daysDifference === 0) return 'Today';
     if (daysDifference === -1) return 'Yesterday';
     return new Date(dateStr).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
   };
 
+  const getActivityTimestamp = (dateStr) => {
+    const time = new Date(dateStr)
+      .toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .toLowerCase();
+    return `${getRelativeTime(dateStr)} • ${time}`;
+  };
+
+  const fmtDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
   return (
-    <div className="flex flex-col min-h-full">
-      {/* TOPBAR */}
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] shrink-0">
-        <div className="max-w-[1200px] w-full mx-auto py-[16px] px-[32px] flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <div className="invoice-detail-page">
+      <header className="invoice-detail-topbar">
+        <div className="invoice-detail-topbar-inner">
+          <div className="invoice-detail-topbar-left">
             <button
+              type="button"
               onClick={() => navigate('/invoices')}
-              className="flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors p-1 -ml-1 rounded-md"
+              className="invoice-detail-back"
               title="Back to Invoices"
+              aria-label="Back to Invoices"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={20} />
             </button>
-            <div className="h-6 w-px bg-[var(--color-border)]"></div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)] leading-tight">
+            <div className="invoice-detail-topbar-divider" aria-hidden="true" />
+            <div className="invoice-detail-title-row">
+              <h1 className="invoice-detail-title">
                 Invoice #{invoice.invoice_number || invoice.id.substring(0, 6)}
               </h1>
               <StatusBadge status={displayStatus} />
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {!isPaid && (
-              <button onClick={handleMarkPaid} disabled={marking} className="btn-primary h-[38px] flex items-center gap-2">
-                <CheckCircle size={16} /> {marking ? 'Updating...' : 'Mark Paid'}
-              </button>
-            )}
-          </div>
+          {!isPaid && (
+            <button
+              type="button"
+              onClick={handleMarkPaid}
+              disabled={marking}
+              className="btn-primary h-[38px] flex items-center gap-2 shrink-0"
+            >
+              <CheckCircle size={16} /> {marking ? 'Updating...' : 'Mark Paid'}
+            </button>
+          )}
         </div>
-      </div>
+      </header>
 
-      {/* CONTENT */}
-      <div className="max-w-[1200px] w-full mx-auto py-[28px] px-[32px] flex-1">
-        {/* Action Buttons Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-[24px] pb-[16px] border-b border-[var(--color-border)]">
+      <div className="invoice-detail-body">
+        <div className="invoice-detail-actions">
           {!isPaid && (
             <>
-              <button onClick={handleSendInvoice} disabled={sendingInvoice} className="btn-secondary h-[38px] flex items-center gap-2 text-sm">
+              <button
+                type="button"
+                onClick={handleSendInvoice}
+                disabled={sendingInvoice}
+                className="invoice-detail-action-btn"
+              >
                 <Send size={16} /> {sendingInvoice ? 'Sending...' : 'Send Invoice'}
               </button>
-              <button onClick={handleSendReminder} disabled={sendingReminder} className="btn-secondary h-[38px] flex items-center gap-2 text-sm">
+              <button
+                type="button"
+                onClick={handleSendReminder}
+                disabled={sendingReminder}
+                className="invoice-detail-action-btn"
+              >
                 <Bell size={16} /> {sendingReminder ? 'Sending...' : 'Send Reminder'}
               </button>
             </>
           )}
-          <button onClick={handleDownloadPDF} className="btn-secondary h-[38px] flex items-center gap-2 text-sm">
+          <button type="button" onClick={handleDownloadPDF} className="invoice-detail-action-btn">
             <Download size={16} /> Download PDF
           </button>
-          <button onClick={() => navigate(`/invoices/${invoice.id}/edit`)} className="btn-secondary h-[38px] flex items-center gap-2 text-sm">
+          <button
+            type="button"
+            onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+            className="invoice-detail-action-btn"
+          >
             <Edit2 size={16} /> Edit
           </button>
-          <button onClick={handleDelete} disabled={deleting} className="btn-danger h-[38px] flex items-center gap-2 ml-auto text-sm">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="invoice-detail-action-btn invoice-detail-action-btn--danger"
+          >
             <Trash2 size={16} /> {deleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-        {/* Left Column: Invoice Info */}
-        <div className="lg:w-[65%] flex flex-col gap-6">
-          <div className="card">
-            <div className="flex flex-col sm:flex-row justify-between gap-6 mb-8">
-              <div>
-                <p className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Billed To</p>
-                <p className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{invoice.client_name}</p>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-1">{invoice.client_email}</p>
-                {invoice.client_phone && <p className="text-sm text-[var(--color-text-secondary)] mb-1">{invoice.client_phone}</p>}
-                {invoice.client_address && <p className="text-sm text-[var(--color-text-secondary)] mt-2 whitespace-pre-line">{invoice.client_address}</p>}
+        <div className="invoice-detail-grid">
+          <div className="invoice-detail-main">
+            <div className="card invoice-detail-card">
+              <div className="invoice-detail-parties">
+                <div>
+                  <p className="invoice-detail-party-label">Billed To</p>
+                  <p className="invoice-detail-client-name">{invoice.client_name}</p>
+                  <p className="invoice-detail-client-line">{invoice.client_email}</p>
+                  {invoice.client_phone && (
+                    <p className="invoice-detail-client-line">{invoice.client_phone}</p>
+                  )}
+                  {invoice.client_address && (
+                    <p className="invoice-detail-client-line invoice-detail-client-address">
+                      {invoice.client_address}
+                    </p>
+                  )}
+                </div>
+                <div className="invoice-detail-party-block--right">
+                  <p className="invoice-detail-party-label">Invoice Details</p>
+                  <div className="invoice-detail-meta-row">
+                    <span className="invoice-detail-meta-label">Issue Date</span>
+                    <span className="invoice-detail-meta-value">{fmtDate(invoice.issue_date)}</span>
+                  </div>
+                  <div className="invoice-detail-meta-row">
+                    <span className="invoice-detail-meta-label">Due Date</span>
+                    <span className="invoice-detail-meta-value">{fmtDate(invoice.due_date)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="sm:text-right">
-                <p className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Invoice Details</p>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-1">
-                  <span className="font-medium text-[var(--color-text-primary)]">Issue Date:</span> {invoice.issue_date ? new Date(invoice.issue_date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
-                </p>
-                <p className="text-sm text-[var(--color-text-secondary)] mb-1">
-                  <span className="font-medium text-[var(--color-text-primary)]">Due Date:</span> {new Date(invoice.due_date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </p>
-              </div>
-            </div>
 
-            {/* Line Items Table */}
-            {lineItems.length > 0 && (
-              <div className="mb-6">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="py-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)]">Description</th>
-                      <th className="py-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] text-right">Qty</th>
-                      <th className="py-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] text-right">Unit Price</th>
-                      <th className="py-3 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lineItems.map((item, idx) => (
-                      <tr key={item.id || idx} className="border-b border-[var(--color-border)] last:border-b-0">
-                        <td className="py-4 text-sm text-[var(--color-text-primary)]">{item.description}</td>
-                        <td className="py-4 text-sm text-[var(--color-text-secondary)] text-right">{item.quantity}</td>
-                        <td className="py-4 text-sm text-[var(--color-text-secondary)] text-right">{fmtMoney(item.unit_price, currency)}</td>
-                        <td className="py-4 text-sm font-mono font-semibold text-[var(--color-text-primary)] text-right">{fmtMoney(item.line_total, currency)}</td>
+              {lineItems.length > 0 && (
+                <div className="invoice-detail-table-wrap">
+                  <table className="invoice-detail-table">
+                    <thead>
+                      <tr>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Totals Breakdown */}
-            <div className="flex justify-end pt-4 border-t border-[var(--color-border)]">
-              <div className="w-full sm:w-[280px] flex flex-col gap-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[var(--color-text-secondary)]">Subtotal</span>
-                  <span className="text-[var(--color-text-primary)] font-mono">{fmtMoney(invoice.subtotal, currency)}</span>
+                    </thead>
+                    <tbody>
+                      {lineItems.map((item, idx) => (
+                        <tr key={item.id || idx}>
+                          <td>{item.description}</td>
+                          <td>{item.quantity}</td>
+                          <td>{fmtMoney(item.unit_price, currency)}</td>
+                          <td>{fmtMoney(item.line_total, currency)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                {taxAmount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--color-text-secondary)]">Tax ({invoice.tax_percent || 0}%)</span>
-                    <span className="text-[var(--color-text-primary)] font-mono">{fmtMoney(taxAmount, currency)}</span>
+              )}
+
+              <div className="invoice-detail-totals">
+                <div className="invoice-detail-totals-inner">
+                  <div className="invoice-detail-total-row">
+                    <span>Subtotal</span>
+                    <span>{fmtMoney(invoice.subtotal, currency)}</span>
                   </div>
-                )}
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[var(--color-text-secondary)]">
-                      Discount {invoice.discount_type === 'percent' ? `(${invoice.discount}%)` : ''}
+                  {taxAmount > 0 && (
+                    <div className="invoice-detail-total-row">
+                      <span>Tax ({invoice.tax_percent || 0}%)</span>
+                      <span>{fmtMoney(taxAmount, currency)}</span>
+                    </div>
+                  )}
+                  {discountAmount > 0 && (
+                    <div className="invoice-detail-total-row invoice-detail-total-row--discount">
+                      <span>
+                        Discount {invoice.discount_type === 'percent' ? `(${invoice.discount}%)` : ''}
+                      </span>
+                      <span>-{fmtMoney(discountAmount, currency)}</span>
+                    </div>
+                  )}
+                  <div className="invoice-detail-grand-total">
+                    <span className="invoice-detail-grand-total-label">Grand Total</span>
+                    <span className="invoice-detail-grand-total-value">
+                      {fmtMoney(invoice.grand_total, currency)}
                     </span>
-                    <span className="text-[var(--color-danger)] font-mono">-{fmtMoney(discountAmount, currency)}</span>
                   </div>
-                )}
-                <div className="flex justify-between text-base font-bold mt-2 pt-3 border-t border-[var(--color-border)]">
-                  <span className="text-[var(--color-text-primary)]">Grand Total</span>
-                  <span className="text-[var(--color-accent)] font-mono">{fmtMoney(invoice.grand_total, currency)}</span>
                 </div>
               </div>
+
+              {(invoice.notes || invoice.payment_terms) && (
+                <div className="invoice-detail-footer">
+                  {invoice.payment_terms && (
+                    <div className="invoice-detail-footer-block">
+                      <p className="invoice-detail-footer-label">Payment Terms</p>
+                      <p className="invoice-detail-footer-text">{invoice.payment_terms}</p>
+                    </div>
+                  )}
+                  {invoice.notes && (
+                    <div className="invoice-detail-footer-block">
+                      <p className="invoice-detail-footer-label">Notes</p>
+                      <p className="invoice-detail-footer-text">{invoice.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-
-            {/* Notes / Terms */}
-            {(invoice.notes || invoice.payment_terms) && (
-              <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
-                {invoice.payment_terms && (
-                  <div className="mb-4">
-                    <p className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Payment Terms</p>
-                    <p className="text-sm text-[var(--color-text-secondary)]">{invoice.payment_terms}</p>
-                  </div>
-                )}
-                {invoice.notes && (
-                  <div>
-                    <p className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Notes</p>
-                    <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-line">{invoice.notes}</p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
-        </div>
 
-        {/* Right Column: Activity Timeline */}
-        <div className="lg:w-[35%] flex flex-col gap-4">
-          <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)] mb-2">Activity Timeline</h2>
-          
-          <div className="card relative p-6">
-            {activities.length === 0 ? (
-              <p className="text-sm text-[var(--color-text-muted)] text-center">No activity yet</p>
-            ) : (
-              <div className="relative border-l-2 border-[var(--color-border)] ml-3 space-y-8 py-2">
-                {activities.map((act) => (
-                  <div key={act.id} className="relative pl-6">
-                    {/* Dot */}
-                    <div 
-                      className="absolute left-[-5px] top-1 w-[8px] h-[8px] rounded-full"
-                      style={{ backgroundColor: getActivityColor(act.type) }}
-                    />
-                    <div className="flex items-start gap-3">
-                      <div className="text-[var(--color-text-muted)] mt-0.5">
-                        {getActivityIcon(act.type)}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-[var(--color-text-primary)] font-medium leading-tight mb-1">
-                          {act.description}
-                        </p>
-                        <p className="text-xs text-[var(--color-text-muted)]">
-                          {getRelativeTime(act.timestamp)} • {new Date(act.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+          <aside className="invoice-detail-sidebar">
+            <div className="card invoice-detail-timeline-card">
+              <h2 className="invoice-detail-timeline-title">Activity Timeline</h2>
+              {activities.length === 0 ? (
+                <p className="invoice-detail-timeline-empty">No activity yet</p>
+              ) : (
+                <div className="invoice-detail-timeline-list">
+                  {activities.map((act) => (
+                    <div key={act.id} className="invoice-detail-timeline-item">
+                      <span
+                        className="invoice-detail-timeline-dot"
+                        style={{ backgroundColor: getActivityColor(act.type) }}
+                      />
+                      <div className="invoice-detail-timeline-item-inner">
+                        <div
+                          className="invoice-detail-timeline-icon"
+                          style={{ color: getActivityColor(act.type) }}
+                        >
+                          {getActivityIcon(act.type)}
+                        </div>
+                        <div className="invoice-detail-timeline-text">
+                          <p className="invoice-detail-timeline-desc">{act.description}</p>
+                          <p className="invoice-detail-timeline-time">
+                            {getActivityTimestamp(act.timestamp)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
       </div>
-      </div>
 
-      {/* Toast Notification */}
+            {/* Toast Notification */}
       {toast && (
         <div className={`toast ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`} onClick={() => setToast(null)}>
           {toast.type === 'success' ? <Check size={18} className="text-[var(--color-accent)]" /> : <AlertCircle size={18} className="text-[var(--color-danger)]" />}

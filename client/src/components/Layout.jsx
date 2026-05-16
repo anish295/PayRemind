@@ -41,7 +41,14 @@ function NavItem({ to, end, icon: Icon, label, collapsed }) {
 }
 
 function LogoMark() {
-  return <div className="sidebar-logo">PR</div>;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255, 255, 255, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.6)', padding: '8px 16px', borderRadius: '12px', width: 'fit-content', boxShadow: '0 4px 30px rgba(0, 0, 0, 0.03)' }}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px', color: '#0f172a' }}>
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+        <path d="m9 10 2 2 4-4" stroke="#10b981" strokeWidth="2.5" />
+      </svg>
+    </div>
+  );
 }
 
 export default function Layout() {
