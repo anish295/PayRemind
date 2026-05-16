@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { createInvoice, getCompanies, createCompany } from '../lib/firestore';
-import { Building2, List, CreditCard, Settings, Loader2 } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
+import { Building2, List, CreditCard, Settings, Loader2, Send, Plus } from 'lucide-react';
 
 const CURRENCY_OPTIONS = ['USD', 'EUR', 'INR', 'GBP'];
 const PAYMENT_TERMS_OPTIONS = ['', 'Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
@@ -199,19 +200,9 @@ export default function InvoiceNew() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* TOPBAR */}
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] shrink-0">
-        <div className="max-w-[1200px] w-full mx-auto py-[16px] px-[32px] flex items-center justify-between">
-          <div>
-            <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)] leading-tight">Create Invoice</h1>
-            <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">Add a new invoice with detailed line items</p>
-          </div>
-        </div>
-      </div>
-
-      {/* CONTENT */}
-      <div className="max-w-[1200px] w-full mx-auto py-[28px] px-[32px] flex-1 pb-24 lg:pb-8">
+    <div className="page-shell">
+      <PageHeader title="New Invoice" subtitle="Create and send a professional invoice to your client" />
+      <div className="page-content pb-28 lg:pb-10">
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Left Column */}
@@ -219,8 +210,9 @@ export default function InvoiceNew() {
             
             {/* Business & Client Info */}
             <div className="card">
-              <h2 className="text-[13px] font-semibold flex items-center gap-2 pb-[12px] border-b border-[var(--color-border)] mb-[16px]">
-                <Building2 size={16} className="text-[var(--color-text-muted)]" /> Business & Client Details
+              <h2 className="section-card-title">
+                <span className="section-card-icon"><Building2 size={16} /></span>
+                Business & Client Details
               </h2>
 
               {/* Company selector */}
@@ -348,8 +340,9 @@ export default function InvoiceNew() {
 
             {/* Line Items */}
             <div className="card">
-              <h2 className="text-[13px] font-semibold flex items-center gap-2 pb-[12px] border-b border-[var(--color-border)] mb-[16px]">
-                <List size={16} className="text-[var(--color-text-muted)]" /> Line Items
+              <h2 className="section-card-title">
+                <span className="section-card-icon"><List size={16} /></span>
+                Line Items
               </h2>
               {errors.line_items && <p className="form-error mb-4">{errors.line_items}</p>}
 
@@ -401,19 +394,20 @@ export default function InvoiceNew() {
                   );
                 })}
               </div>
-              <button type="button" onClick={addLineItem} className="btn-secondary mt-4 text-sm w-full sm:w-auto h-[38px]">
-                + Add Line Item
+              <button type="button" onClick={addLineItem} className="btn-outline-accent mt-4 w-full sm:w-auto">
+                <Plus size={16} /> Add Line Item
               </button>
             </div>
             </div>
 
             {/* Right Column */}
-            <div className="lg:w-[35%] flex flex-col gap-6">
+            <div className="lg:w-[35%] flex flex-col gap-6 sticky-summary">
             
             {/* Totals & Payment */}
             <div className="card">
-              <h2 className="text-[13px] font-semibold flex items-center gap-2 pb-[12px] border-b border-[var(--color-border)] mb-[16px]">
-                <CreditCard size={16} className="text-[var(--color-text-muted)]" /> Totals & Payment
+              <h2 className="section-card-title">
+                <span className="section-card-icon"><CreditCard size={16} /></span>
+                Totals & Payment
               </h2>
               
               <div className="flex flex-col gap-[16px]">
@@ -451,9 +445,9 @@ export default function InvoiceNew() {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center py-3 border-t border-[var(--color-border)]">
+                <div className="flex justify-between items-center py-4 mt-2 px-4 rounded-xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
                   <span className="font-bold text-[var(--color-text-primary)]">Grand Total</span>
-                  <span className="font-mono font-bold text-lg text-[var(--color-accent)]">
+                  <span className="font-mono font-bold text-2xl text-[var(--color-accent)] tracking-tight">
                     {currencySymbol}{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -479,8 +473,9 @@ export default function InvoiceNew() {
 
             {/* Additional Options */}
             <div className="card">
-              <h2 className="text-[13px] font-semibold flex items-center gap-2 pb-[12px] border-b border-[var(--color-border)] mb-[16px]">
-                <Settings size={16} className="text-[var(--color-text-muted)]" /> Additional Options
+              <h2 className="section-card-title">
+                <span className="section-card-icon"><Settings size={16} /></span>
+                Additional Options
               </h2>
               <div className="flex flex-col gap-[16px]">
                 <div className="mb-[16px]">
@@ -512,11 +507,12 @@ export default function InvoiceNew() {
             </div>
           </div>
 
-          {/* Mobile-Sticky Save Button Container */}
-          <div className="fixed bottom-[60px] left-0 right-0 p-4 bg-[var(--color-bg-primary)] border-t border-[var(--color-border)] z-20 flex justify-end gap-3 lg:static lg:left-[var(--sidebar-width)] lg:ml-auto lg:bg-transparent lg:border-none lg:p-0">
-            <button type="button" onClick={() => navigate('/invoices')} className="btn-secondary px-6 h-[38px]">Cancel</button>
-            <button type="submit" disabled={submitting} className="btn-primary px-8 flex items-center gap-2 h-[38px]">
-              {submitting && <Loader2 size={16} className="animate-spin" />}
+          <div className="form-actions-bar">
+            <button type="button" onClick={() => navigate('/invoices')} className="btn-secondary px-6">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="btn-primary px-8">
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               {submitting ? 'Creating...' : 'Create Invoice'}
             </button>
           </div>

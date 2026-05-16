@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getInvoiceStats } from '../lib/firestore';
+import { getInvoiceStats, getInvoices } from '../lib/firestore';
 import StatCard from '../components/StatCard';
+import InvoiceTable from '../components/InvoiceTable';
+import PageHeader from '../components/PageHeader';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { 
-  FileText, 
-  AlertCircle, 
-  CheckCircle2, 
-  DollarSign, 
-  Plus, 
-  List, 
-  Building2
+import {
+  FileText,
+  AlertCircle,
+  CheckCircle2,
+  IndianRupee,
+  Plus,
+  List,
+  Building2,
+  ChevronRight,
+  Info,
 } from 'lucide-react';
 
 const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', INR: '₹', GBP: '£' };
@@ -24,6 +28,7 @@ function getGreeting() {
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [recentInvoices, setRecentInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const greeting = getGreeting();
@@ -31,8 +36,9 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const statsData = await getInvoiceStats();
+        const [statsData, invoices] = await Promise.all([getInvoiceStats(), getInvoices()]);
         setStats(statsData);
+        setRecentInvoices(invoices.slice(0, 5));
       } catch (err) {
         console.error('Failed to load dashboard:', err);
       } finally {
@@ -44,34 +50,37 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-full">
-        <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] shrink-0">
-          <div className="max-w-[1200px] w-full mx-auto py-[16px] px-[32px] flex flex-col">
-            <div className="skeleton h-8 w-48 mb-2"></div>
-            <div className="skeleton h-4 w-64"></div>
+      <div className="page-shell">
+        <header className="page-header">
+          <div className="page-header-inner">
+            <div className="skeleton h-8 w-56 mb-2" />
+            <div className="skeleton h-4 w-72" />
           </div>
-        </div>
-        <div className="max-w-[1200px] w-full mx-auto py-[28px] px-[32px] flex-1">
-          <div className="space-y-10 animate-pulse">
-            <div className="grid grid-cols-2 min-[900px]:grid-cols-4 gap-[16px] mb-[20px]">
-              <div className="skeleton h-[120px] rounded-[var(--radius-md)]"></div>
-              <div className="skeleton h-[120px] rounded-[var(--radius-md)]"></div>
-              <div className="skeleton h-[120px] rounded-[var(--radius-md)]"></div>
-              <div className="skeleton h-[120px] rounded-[var(--radius-md)]"></div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-[20px]">
-              <div className="skeleton h-[300px] rounded-[var(--radius-md)]"></div>
-              <div className="skeleton h-[300px] rounded-[var(--radius-md)]"></div>
-            </div>
+        </header>
+        <div className="page-content">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="skeleton h-[118px] rounded-2xl" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
+            <div className="skeleton h-[320px] rounded-2xl" />
+            <div className="skeleton h-[320px] rounded-2xl" />
           </div>
         </div>
       </div>
     );
   }
 
-  const unpaidDisplay = stats?.unpaidCurrencies?.length > 0 
-    ? stats.unpaidCurrencies.map(c => `${CURRENCY_SYMBOLS[c.currency] || c.currency}${c.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' / ')
-    : '0';
+  const unpaidDisplay =
+    stats?.unpaidCurrencies?.length > 0
+      ? stats.unpaidCurrencies
+          .map(
+            (c) =>
+              `${CURRENCY_SYMBOLS[c.currency] || c.currency}${c.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          )
+          .join(' / ')
+      : '0';
 
   const pendingCount = (stats?.pendingCount || 0) + (stats?.reminderSentCount || 0);
   const paidCount = stats?.paidCount || 0;
@@ -80,179 +89,152 @@ export default function Dashboard() {
 
   const chartData = [
     { name: 'Paid', value: paidCount, color: '#22c55e' },
-    { name: 'Pending', value: pendingCount, color: '#f59e0b' },
-    { name: 'Overdue', value: overdueCount, color: '#ef4444' }
+    { name: 'Pending', value: pendingCount, color: '#f97316' },
+    { name: 'Overdue', value: overdueCount, color: '#ef4444' },
   ];
 
+  const pendingTotal =
+    stats?.unpaidCurrencies?.length === 1
+      ? `${CURRENCY_SYMBOLS[stats.unpaidCurrencies[0].currency] || '₹'}${stats.unpaidCurrencies[0].total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : unpaidDisplay;
+
   return (
-    <div className="flex flex-col min-h-full">
-      {/* TOPBAR */}
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] shrink-0">
-        <div className="max-w-[1200px] w-full mx-auto py-[16px] px-[32px] flex items-center justify-between">
-          <div>
-            <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)] leading-tight">{greeting}</h1>
-            <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">Here's your payment overview for today</p>
-          </div>
-        </div>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        title={`${greeting} 👋`}
+        subtitle="Here's your payment overview for today"
+      />
 
-      {/* CONTENT */}
-      <div className="max-w-[1200px] w-full mx-auto py-[28px] px-[32px] flex-1">
-        
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 min-[900px]:grid-cols-4 gap-[16px] mb-[20px]">
-          <StatCard
-            label="Total Invoices"
-            value={totalCount}
-            icon={<FileText size={20} />}
-            variant="default"
-          />
-          <StatCard
-            label="Unpaid Amount"
-            value={unpaidDisplay}
-            icon={<DollarSign size={20} />}
-            variant="accent"
-          />
-          <StatCard
-            label="Overdue"
-            value={overdueCount}
-            icon={<AlertCircle size={20} />}
-            variant="danger"
-          />
-          <StatCard
-            label="Paid This Month"
-            value={paidCount}
-            icon={<CheckCircle2 size={20} />}
-            variant="success"
-          />
+      <div className="page-content">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard label="Total Invoices" value={totalCount} meta="All time" icon={<FileText size={20} />} variant="default" />
+          <StatCard label="Unpaid Amount" value={unpaidDisplay} meta="Total outstanding" icon={<IndianRupee size={20} />} variant="accent" />
+          <StatCard label="Overdue" value={overdueCount} meta="Requires attention" icon={<AlertCircle size={20} />} variant="danger" />
+          <StatCard label="Paid This Month" value={paidCount} meta="Payments received" icon={<CheckCircle2 size={20} />} variant="success" />
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 min-[900px]:grid-cols-[1fr_340px] gap-[20px]">
-          
-          {/* Chart Panel */}
-          <div className="card flex flex-col p-[24px]">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-[0.1em]">Payment Overview</h2>
-            </div>
-            
-            <div className="flex flex-1 items-center gap-[24px]">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 mb-8">
+          <div className="card card-hover">
+            <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6">Payment Overview</h2>
+
+            <div className="flex flex-col sm:flex-row flex-1 items-center gap-6">
               {totalCount === 0 ? (
                 <>
-                  <div className="relative w-[240px] h-[220px] flex items-center justify-center">
-                    <div className="w-[200px] h-[200px] rounded-full border-[20px] border-[var(--color-bg-tertiary)] flex items-center justify-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <span className="text-[24px] font-[700] text-[var(--color-text-primary)] leading-tight">0</span>
-                        <span className="text-[12px] text-[var(--color-text-muted)]">Total</span>
+                  <div className="relative w-[220px] h-[220px] flex items-center justify-center shrink-0">
+                    <div className="w-[180px] h-[180px] rounded-full border-[18px] border-[var(--color-bg-tertiary)] flex items-center justify-center">
+                      <div className="flex flex-col items-center">
+                        <span className="text-2xl font-bold text-[var(--color-text-primary)]">0</span>
+                        <span className="text-xs text-[var(--color-text-muted)]">Total</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-4 flex-1 justify-center">
+                  <div className="flex flex-col gap-4 flex-1 w-full">
                     {chartData.map((item) => (
                       <div key={item.name} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: 'var(--color-bg-tertiary)' }} />
-                          <span className="text-[14px] text-[var(--color-text-muted)]">{item.name}</span>
+                          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                          <span className="text-sm text-[var(--color-text-muted)]">{item.name}</span>
                         </div>
-                        <span className="text-[14px] font-[600] text-[var(--color-text-muted)] text-right">0</span>
+                        <span className="text-sm font-semibold text-[var(--color-text-muted)]">0%</span>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
                 <>
-                  {/* Chart */}
-                  <div className="relative w-[240px] h-[220px]">
+                  <div className="relative w-[220px] h-[220px] shrink-0">
                     <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
-                        <Pie
-                          data={chartData}
-                          dataKey="value"
-                          innerRadius={60}
-                          outerRadius={100}
-                          stroke="none"
-                        >
+                        <Pie data={chartData} dataKey="value" innerRadius={62} outerRadius={98} stroke="none" paddingAngle={2}>
                           {chartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Custom Center Label */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-[24px] font-[700] text-[var(--color-text-primary)] leading-tight">{totalCount}</span>
-                      <span className="text-[12px] text-[var(--color-text-muted)]">Total</span>
+                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">{totalCount}</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">Total</span>
                     </div>
                   </div>
-                  
-                  {/* Legend */}
-                  <div className="flex flex-col gap-4 flex-1 justify-center">
-                    {chartData.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-[10px] h-[10px] rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="text-[14px] text-[var(--color-text-primary)]">{item.name}</span>
+                  <div className="flex flex-col gap-4 flex-1 w-full">
+                    {chartData.map((item) => {
+                      const pct = totalCount ? Math.round((item.value / totalCount) * 100) : 0;
+                      return (
+                        <div key={item.name} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                            <span className="text-sm text-[var(--color-text-primary)]">{item.name}</span>
+                          </div>
+                          <span className="text-sm font-semibold text-[var(--color-text-primary)]">{pct}%</span>
                         </div>
-                        <span className="text-[14px] font-[600] text-[var(--color-text-primary)] text-right">
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
             </div>
+
+            {pendingCount > 0 && (
+              <div className="alert-banner">
+                <Info size={18} className="shrink-0" />
+                <span>
+                  You have {pendingCount} pending invoice{pendingCount !== 1 ? 's' : ''} totalling {pendingTotal}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Quick Actions Panel */}
-          <div className="card flex flex-col overflow-hidden p-0">
-            <div className="p-[20px] pb-[16px] border-b border-[var(--color-border)]">
-              <h2 className="text-[11px] font-bold text-[var(--color-text-primary)] uppercase tracking-[0.1em]">Quick Actions</h2>
+          <div className="card card-flush card-hover flex flex-col">
+            <div className="px-5 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Quick Actions</h2>
             </div>
-            
-            <div className="flex flex-col">
-              <button 
-                onClick={() => navigate('/invoices/new')}
-                className="w-full flex items-center gap-[14px] p-[14px_18px] min-h-[60px] border-b border-[var(--color-border)] hover:bg-[var(--color-bg-tertiary)] transition-colors group text-left"
-              >
-                <div className="w-[36px] h-[36px] rounded-[8px] bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
+            <div className="flex flex-col flex-1">
+              <button type="button" onClick={() => navigate('/invoices/new')} className="quick-action-row group">
+                <div className="quick-action-icon">
                   <Plus size={20} />
                 </div>
-                <div>
-                  <p className="text-[14px] font-[600] text-[var(--color-text-primary)] leading-tight">New Invoice</p>
-                  <p className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">Create and send a new invoice</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">New Invoice</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Create and send a new invoice</p>
                 </div>
+                <ChevronRight size={18} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors shrink-0" />
               </button>
-
-              <button 
-                onClick={() => navigate('/invoices')}
-                className="w-full flex items-center gap-[14px] p-[14px_18px] min-h-[60px] border-b border-[var(--color-border)] hover:bg-[var(--color-bg-tertiary)] transition-colors group text-left"
-              >
-                <div className="w-[36px] h-[36px] rounded-[8px] bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
+              <button type="button" onClick={() => navigate('/invoices')} className="quick-action-row group">
+                <div className="quick-action-icon">
                   <List size={20} />
                 </div>
-                <div>
-                  <p className="text-[14px] font-[600] text-[var(--color-text-primary)] leading-tight">View All Invoices</p>
-                  <p className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">Manage your existing invoices</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">View All Invoices</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Manage your existing invoices</p>
                 </div>
+                <ChevronRight size={18} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors shrink-0" />
               </button>
-
-              <button 
-                onClick={() => navigate('/companies')}
-                className="w-full flex items-center gap-[14px] p-[14px_18px] min-h-[60px] hover:bg-[var(--color-bg-tertiary)] transition-colors group text-left"
-              >
-                <div className="w-[36px] h-[36px] rounded-[8px] bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
+              <button type="button" onClick={() => navigate('/companies')} className="quick-action-row group">
+                <div className="quick-action-icon">
                   <Building2 size={20} />
                 </div>
-                <div>
-                  <p className="text-[14px] font-[600] text-[var(--color-text-primary)] leading-tight">Manage Companies</p>
-                  <p className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">Add or edit saved clients</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">Manage Companies</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Add or edit saved clients</p>
                 </div>
+                <ChevronRight size={18} className="text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors shrink-0" />
               </button>
             </div>
           </div>
-
         </div>
+
+        <section>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Recent Invoices</h2>
+            <Link to="/invoices" className="btn-outline-accent">
+              View All Invoices
+            </Link>
+          </div>
+          <div className="card card-flush">
+            <InvoiceTable invoices={recentInvoices} />
+          </div>
+        </section>
       </div>
     </div>
   );
