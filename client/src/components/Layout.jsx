@@ -122,7 +122,7 @@ export default function Layout() {
                 <LogoMark />
                 <div className="sidebar-brand-text">
                   <span className="sidebar-brand-name">PayRemind</span>
-                  <span className="sidebar-brand-tagline">Payment System</span>
+                  <span className="sidebar-brand-tagline">Smart Payment</span>
                 </div>
               </div>
               <button
@@ -165,41 +165,49 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <nav className="mobile-bottom-nav md:hidden">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'mobile-bottom-nav-item--active' : ''}`}
-          aria-label="Dashboard"
-        >
-          <LayoutDashboard size={22} />
-        </NavLink>
-        <NavLink
-          to="/invoices"
-          end
-          className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'mobile-bottom-nav-item--active' : ''}`}
-          aria-label="Invoices"
-        >
-          <FileText size={22} />
-        </NavLink>
-        <div className="mobile-bottom-nav-fab">
-          <button
-            type="button"
-            onClick={() => navigate('/invoices/new')}
-            className="mobile-bottom-nav-fab-btn"
-            aria-label="New Invoice"
+      {isMobile && (
+        <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              `mobile-bottom-nav-item ${isActive ? 'mobile-bottom-nav-item--active' : ''}`
+            }
+            aria-label="Dashboard"
           >
-            <Plus size={24} strokeWidth={2.5} />
-          </button>
-        </div>
-        <NavLink
-          to="/companies"
-          className={({ isActive }) => `mobile-bottom-nav-item ${isActive ? 'mobile-bottom-nav-item--active' : ''}`}
-          aria-label="Companies"
-        >
-          <Building2 size={22} />
-        </NavLink>
-      </nav>
+            <LayoutDashboard size={22} />
+          </NavLink>
+          <NavLink
+            to="/invoices"
+            end
+            className={({ isActive }) =>
+              `mobile-bottom-nav-item ${isActive ? 'mobile-bottom-nav-item--active' : ''}`
+            }
+            aria-label="Invoices"
+          >
+            <FileText size={22} />
+          </NavLink>
+          <div className="mobile-bottom-nav-fab">
+            <button
+              type="button"
+              onClick={() => navigate('/invoices/new')}
+              className="mobile-bottom-nav-fab-btn"
+              aria-label="New Invoice"
+            >
+              <Plus size={24} strokeWidth={2.5} />
+            </button>
+          </div>
+          <NavLink
+            to="/companies"
+            className={({ isActive }) =>
+              `mobile-bottom-nav-item ${isActive ? 'mobile-bottom-nav-item--active' : ''}`
+            }
+            aria-label="Companies"
+          >
+            <Building2 size={22} />
+          </NavLink>
+        </nav>
+      )}
     </div>
   );
 }

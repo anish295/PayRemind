@@ -21,9 +21,9 @@ const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', INR: '₹', GBP: '£' };
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning, Admin';
-  if (hour < 18) return 'Good afternoon, Admin';
-  return 'Good evening, Admin';
+  if (hour < 12) return 'Good morning, Anish';
+  if (hour < 18) return 'Good afternoon, Anish';
+  return 'Good evening, Anish';
 }
 
 export default function Dashboard() {
@@ -57,15 +57,15 @@ export default function Dashboard() {
             <div className="skeleton h-4 w-72" />
           </div>
         </header>
-        <div className="page-content">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="page-content page-content--dashboard">
+          <div className="dashboard-stats">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="skeleton h-[118px] rounded-2xl" />
             ))}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
-            <div className="skeleton h-[320px] rounded-2xl" />
-            <div className="skeleton h-[320px] rounded-2xl" />
+          <div className="dashboard-main-grid">
+            <div className="skeleton h-[360px] rounded-2xl" />
+            <div className="skeleton h-[360px] rounded-2xl" />
           </div>
         </div>
       </div>
@@ -99,25 +99,26 @@ export default function Dashboard() {
       : unpaidDisplay;
 
   return (
-    <div className="page-shell">
+    <div className="page-shell page-shell--dashboard">
       <PageHeader
+        className="page-header--dashboard"
         title={`${greeting} 👋`}
         subtitle="Here's your payment overview for today"
       />
 
-      <div className="page-content">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="page-content page-content--dashboard">
+        <div className="dashboard-stats">
           <StatCard label="Total Invoices" value={totalCount} meta="All time" icon={<FileText size={20} />} variant="default" />
           <StatCard label="Unpaid Amount" value={unpaidDisplay} meta="Total outstanding" icon={<IndianRupee size={20} />} variant="accent" />
           <StatCard label="Overdue" value={overdueCount} meta="Requires attention" icon={<AlertCircle size={20} />} variant="danger" />
           <StatCard label="Paid This Month" value={paidCount} meta="Payments received" icon={<CheckCircle2 size={20} />} variant="success" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5 mb-8">
-          <div className="card card-hover">
-            <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6">Payment Overview</h2>
+        <div className="dashboard-main-grid">
+          <div className="card card-hover dashboard-overview-card">
+            <h2 className="dashboard-card-title dashboard-overview-title">Payment Overview</h2>
 
-            <div className="flex flex-col sm:flex-row flex-1 items-center gap-6">
+            <div className="dashboard-chart-row">
               {totalCount === 0 ? (
                 <>
                   <div className="relative w-[220px] h-[220px] flex items-center justify-center shrink-0">
@@ -185,9 +186,9 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="card card-flush card-hover flex flex-col">
-            <div className="px-5 py-4 border-b border-[var(--color-border)]">
-              <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Quick Actions</h2>
+          <div className="card card-flush card-hover flex flex-col dashboard-quick-actions">
+            <div className="dashboard-quick-actions-head">
+              <h2 className="dashboard-card-title">Quick Actions</h2>
             </div>
             <div className="flex flex-col flex-1">
               <button type="button" onClick={() => navigate('/invoices/new')} className="quick-action-row group">
@@ -224,9 +225,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <section>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Recent Invoices</h2>
+        <section className="dashboard-recent-section">
+          <div className="dashboard-section-head">
+            <h2 className="dashboard-section-title">Recent Invoices</h2>
             <Link to="/invoices" className="btn-outline-accent">
               View All Invoices
             </Link>
