@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "paymentreminder295"
+  },
+  "targets": {},
+  "etags": {
+    "paymentreminder295": {
+      "extensionInstances": {
+        "firestore-send-email": "501256fbaf25d4e80676838ba3bbf40f6b722678b51e231107323d489756c6e6"
+      }
+    }
+  }
+}
