@@ -17,7 +17,7 @@ import {
   Info,
 } from 'lucide-react';
 
-const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', INR: '₹', GBP: '£' };
+import { fmtMoney, CURRENCY_SYMBOLS } from '../lib/currency';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -75,10 +75,7 @@ export default function Dashboard() {
   const unpaidDisplay =
     stats?.unpaidCurrencies?.length > 0
       ? stats.unpaidCurrencies
-          .map(
-            (c) =>
-              `${CURRENCY_SYMBOLS[c.currency] || c.currency}${c.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          )
+          .map((c) => fmtMoney(c.total, c.currency))
           .join(' / ')
       : '0';
 
@@ -95,7 +92,7 @@ export default function Dashboard() {
 
   const pendingTotal =
     stats?.unpaidCurrencies?.length === 1
-      ? `${CURRENCY_SYMBOLS[stats.unpaidCurrencies[0].currency] || '₹'}${stats.unpaidCurrencies[0].total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      ? fmtMoney(stats.unpaidCurrencies[0].total, stats.unpaidCurrencies[0].currency)
       : unpaidDisplay;
 
   return (

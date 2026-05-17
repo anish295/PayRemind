@@ -2,19 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getInvoice, updateInvoice, deleteInvoice, getActivities, logActivity } from '../lib/firestore';
 import { sendInvoiceEmail, sendReminderEmail } from '../lib/emailjs';
-import { downloadInvoicePDF } from '../lib/pdfGenerator';
+import { downloadInvoicePDF, generateInvoicePDFBase64 } from '../lib/pdfGenerator';
 import StatusBadge from '../components/StatusBadge';
 import { 
   ArrowLeft, Edit2, Send, Bell, Download, CheckCircle, Trash2, 
   FileText, Activity, Mail, RefreshCw, PlusCircle, Check, AlertCircle
 } from 'lucide-react';
 
-const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', INR: '₹', GBP: '£' };
-
-function fmtMoney(amount, currency = 'INR') {
-  const sym = CURRENCY_SYMBOLS[currency] || '₹';
-  return `${sym}${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { fmtMoney } from '../lib/currency';
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -58,7 +53,9 @@ export default function InvoiceDetail() {
     if (!invoice) return;
     setSendingInvoice(true);
     try {
-      await sendInvoiceEmail(invoice);
+      // Generate PDF as base64 for email attachment
+      const pdfBase64 = generateInvoicePDFBase64(invoice);
+      await sendInvoiceEmail(invoice, pdfBase64);
       await logActivity(invoice.id, {
         type: 'invoice_sent',
         description: `Invoice sent to ${invoice.client_email}`,

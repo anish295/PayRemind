@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { createInvoice, getCompanies, createCompany } from '../lib/firestore';
+import { createInvoice, getCompanies, createCompany, logActivity } from '../lib/firestore';
+import { sendInvoiceEmail } from '../lib/emailjs';
+import { generateInvoicePDFBase64 } from '../lib/pdfGenerator';
+import { fmtMoney } from '../lib/currency';
 import PageHeader from '../components/PageHeader';
-import { Building2, List, CreditCard, Settings, Loader2, Send, Plus } from 'lucide-react';
+import { Building2, List, CreditCard, Settings, Loader2, Send, Plus, ChevronDown, Search, Hash, User, Mail, Phone, MapPin, CalendarDays, CircleDollarSign, BadgeCheck, FileText, Tag, Percent } from 'lucide-react';
 
 const CURRENCY_OPTIONS = ['USD', 'EUR', 'INR', 'GBP'];
 const PAYMENT_TERMS_OPTIONS = ['', 'Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
@@ -24,6 +27,26 @@ function formatDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
+const FIELD_ICON_CLASS = 'pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]';
+const FIELD_TRAILING_ICON_CLASS = 'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]';
+
+function FieldShell({ label, htmlFor, icon: Icon, trailingIcon: TrailingIcon, error, hint, children, className = '' }) {
+  return (
+    <div className={className}>
+      <label htmlFor={htmlFor} className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">
+        {label}
+      </label>
+      <div className="relative">
+        {Icon && <Icon size={14} className={FIELD_ICON_CLASS} />}
+        {children}
+        {TrailingIcon && <TrailingIcon size={14} className={FIELD_TRAILING_ICON_CLASS} />}
+      </div>
+      {error && <p className="form-error">{error}</p>}
+      {hint && <p className="text-xs text-[var(--color-text-muted)] mt-1">{hint}</p>}
+    </div>
+  );
+}
+
 export default function InvoiceNew() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -39,7 +62,6 @@ export default function InvoiceNew() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [companies, setCompanies] = useState([]);
-  const [selectedCompany, setSelectedCompany] = useState('');
   const [companySearch, setCompanySearch] = useState('');
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [saveAsCompany, setSaveAsCompany] = useState(false);
@@ -139,9 +161,9 @@ export default function InvoiceNew() {
   function removeLineItem(index) { if (lineItems.length <= 1) return; setLineItems((prev) => prev.filter((_, i) => i !== index)); }
 
   function handleSelectCompany(company) {
-    setSelectedCompany(company.id);
     setForm((prev) => ({
       ...prev,
+      business_name: company.company_name || '',
       client_name: company.contact_name || company.company_name || '',
       client_email: company.email || '',
       client_phone: company.phone || '',
@@ -182,16 +204,38 @@ export default function InvoiceNew() {
       });
 
       if (saveAsCompany && form.client_name.trim()) {
-        await createCompany({
-          company_name: form.business_name || form.client_name,
-          contact_name: form.client_name,
-          email: form.client_email,
-          phone: form.client_phone,
-          address: form.client_address,
-        });
+        try {
+          await createCompany({
+            company_name: form.business_name || form.client_name,
+            contact_name: form.client_name,
+            email: form.client_email,
+            phone: form.client_phone,
+            address: form.client_address,
+          });
+        } catch (companyErr) {
+          console.warn('Failed to save company after creating invoice:', companyErr);
+        }
       }
 
-      setToast({ type: 'success', message: 'Invoice created successfully!' });
+      let emailError = null;
+      try {
+        const pdfBase64 = generateInvoicePDFBase64(result);
+        await sendInvoiceEmail(result, pdfBase64);
+        await logActivity(result.id, {
+          type: 'invoice_sent',
+          description: `Invoice sent to ${result.client_email}`,
+          metadata: { email_type: 'invoice', to_email: result.client_email, auto_sent: true },
+        });
+      } catch (err) {
+        emailError = err;
+      }
+
+      setToast({
+        type: emailError ? 'error' : 'success',
+        message: emailError
+          ? `Invoice created, but email could not be sent: ${emailError.message}`
+          : `Invoice created and emailed to ${result.client_email}!`,
+      });
       setTimeout(() => navigate(`/invoices/${result.id}`), 1000);
     } catch (err) {
       setToast({ type: 'error', message: err.message });
@@ -216,17 +260,24 @@ export default function InvoiceNew() {
               </h2>
 
               {/* Company selector */}
-              <div className="mb-[16px] relative">
-                <label className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Select Saved Company</label>
-                <input
-                  type="text"
-                  value={companySearch}
-                  onChange={(e) => { setCompanySearch(e.target.value); setShowCompanyDropdown(true); setSelectedCompany(''); }}
-                  onFocus={() => setShowCompanyDropdown(true)}
-                  className="input-field h-[38px] w-full"
-                  placeholder="Search companies..."
-                  id="company-search"
-                />
+              <div className="relative">
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Select Saved Company"
+                  htmlFor="company-search"
+                  icon={Search}
+                  trailingIcon={ChevronDown}
+                >
+                  <input
+                    type="text"
+                    value={companySearch}
+                    onChange={(e) => { setCompanySearch(e.target.value); setShowCompanyDropdown(true); }}
+                    onFocus={() => setShowCompanyDropdown(true)}
+                    className="input-field h-[38px] w-full pl-10 pr-10"
+                    placeholder="Search companies..."
+                    id="company-search"
+                  />
+                </FieldShell>
                 {showCompanyDropdown && filteredCompanies.length > 0 && (
                   <div className="absolute z-30 w-full mt-1 max-h-48 overflow-y-auto rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] shadow-xl">
                     {filteredCompanies.map((c) => (
@@ -246,86 +297,125 @@ export default function InvoiceNew() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
-                <div className="mb-[16px]">
-                  <label htmlFor="business_name" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Business Name</label>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Business Name"
+                  htmlFor="business_name"
+                  icon={Building2}
+                >
                   <input type="text" id="business_name" value={form.business_name}
-                    onChange={handleChange('business_name')} className="input-field h-[38px] w-full"
+                    onChange={handleChange('business_name')} className="input-field h-[38px] w-full pl-10"
                     placeholder="e.g. Tata Consultancy Services" />
-                </div>
-                <div className="mb-[16px]">
-                  <label htmlFor="invoice_number" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">
-                    Invoice Number <span className="text-[var(--color-text-muted)] font-normal">(auto-generated)</span>
-                  </label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label={(
+                    <>
+                      Invoice Number <span className="text-[var(--color-text-muted)] font-normal">(auto-generated)</span>
+                    </>
+                  )}
+                  htmlFor="invoice_number"
+                  icon={Hash}
+                >
                   <input type="text" id="invoice_number" value={form.invoice_number}
-                    onChange={handleChange('invoice_number')} className="input-field h-[38px] w-full"
+                    onChange={handleChange('invoice_number')} className="input-field h-[38px] w-full pl-10"
                     placeholder="e.g. INV-2026-001" />
-                </div>
-                <div className="mb-[16px]">
-                  <label htmlFor="client_name" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Client Name *</label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Client Name *"
+                  htmlFor="client_name"
+                  icon={User}
+                  error={errors.client_name}
+                >
                   <input type="text" id="client_name" value={form.client_name}
                     onChange={handleChange('client_name')}
-                    className={`input-field h-[38px] w-full ${errors.client_name ? 'border-[var(--color-danger)]' : ''}`}
+                    className={`input-field h-[38px] w-full pl-10 ${errors.client_name ? 'border-[var(--color-danger)]' : ''}`}
                     placeholder="e.g. Rahul Sharma" />
-                  {errors.client_name && <p className="form-error">{errors.client_name}</p>}
-                </div>
-                <div className="mb-[16px]">
-                  <label htmlFor="client_email" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Client Email *</label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Client Email *"
+                  htmlFor="client_email"
+                  icon={Mail}
+                  error={errors.client_email}
+                >
                   <input type="email" id="client_email" value={form.client_email}
                     onChange={handleChange('client_email')}
-                    className={`input-field h-[38px] w-full ${errors.client_email ? 'border-[var(--color-danger)]' : ''}`}
+                    className={`input-field h-[38px] w-full pl-10 ${errors.client_email ? 'border-[var(--color-danger)]' : ''}`}
                     placeholder="e.g. rahul@example.in" />
-                  {errors.client_email && <p className="form-error">{errors.client_email}</p>}
-                </div>
-                <div className="mb-[16px]">
-                  <label htmlFor="client_phone" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Client Phone</label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Client Phone"
+                  htmlFor="client_phone"
+                  icon={Phone}
+                >
                   <input type="tel" id="client_phone" value={form.client_phone}
-                    onChange={handleChange('client_phone')} className="input-field h-[38px] w-full"
+                    onChange={handleChange('client_phone')} className="input-field h-[38px] w-full pl-10"
                     placeholder="e.g. +91 98765 43210" />
-                </div>
-                <div className="mb-[16px]">
-                  <label className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Currency</label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Currency"
+                  htmlFor="currency"
+                  icon={CircleDollarSign}
+                  trailingIcon={ChevronDown}
+                >
                   <select id="currency" value={form.currency}
-                    onChange={handleChange('currency')} className="input-field h-[38px] w-full appearance-none cursor-pointer">
+                    onChange={handleChange('currency')} className="input-field h-[38px] w-full appearance-none cursor-pointer pl-10 pr-10">
                     {CURRENCY_OPTIONS.map(c => <option key={c} value={c} className="bg-[var(--color-bg-secondary)]">{c}</option>)}
                   </select>
-                </div>
-                <div className="mb-[16px]">
-                  <label className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Issue Date</label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Issue Date"
+                  htmlFor="issue_date"
+                  icon={CalendarDays}
+                >
                   <DatePicker
                     selected={parseDate(form.issue_date)}
                     onChange={(date) => setForm((prev) => ({ ...prev, issue_date: formatDateStr(date) }))}
                     dateFormat="dd/MM/yyyy"
                     todayButton="Today"
-                    className="input-field h-[38px] w-full"
+                    className="input-field h-[38px] w-full pl-10"
                     wrapperClassName="w-full"
                     id="issue_date"
                     placeholderText="DD/MM/YYYY"
                   />
-                </div>
-                <div className="mb-[16px]">
-                  <label className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Due Date *</label>
+                </FieldShell>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Due Date *"
+                  htmlFor="due_date"
+                  icon={CalendarDays}
+                  error={errors.due_date}
+                >
                   <DatePicker
                     selected={parseDate(form.due_date)}
                     onChange={(date) => { setForm((prev) => ({ ...prev, due_date: formatDateStr(date) })); if (errors.due_date) setErrors((prev) => ({ ...prev, due_date: undefined })); }}
                     dateFormat="dd/MM/yyyy"
                     todayButton="Today"
                     minDate={parseDate(form.issue_date)}
-                    className={`input-field h-[38px] w-full ${errors.due_date ? 'border-[var(--color-danger)]' : ''}`}
+                    className={`input-field h-[38px] w-full pl-10 ${errors.due_date ? 'border-[var(--color-danger)]' : ''}`}
                     wrapperClassName="w-full"
                     id="due_date"
                     placeholderText="DD/MM/YYYY"
                   />
-                  {errors.due_date && <p className="form-error">{errors.due_date}</p>}
-                </div>
+                </FieldShell>
               </div>
 
-              <div className="mb-[16px]">
-                <label htmlFor="client_address" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Client Address</label>
+              <FieldShell
+                className="mb-[16px]"
+                label="Client Address"
+                htmlFor="client_address"
+                icon={MapPin}
+              >
                 <textarea id="client_address" value={form.client_address}
                   onChange={handleChange('client_address')}
-                  className="input-field min-h-[70px] resize-y w-full"
+                  className="input-field min-h-[70px] resize-y w-full pl-10 pt-3"
                   placeholder="Street, City, State, ZIP..." rows={2} />
-              </div>
+              </FieldShell>
 
               {/* Save as company checkbox */}
               <div className="flex items-center gap-3 pt-5 border-t border-[var(--color-border)]">
@@ -382,7 +472,7 @@ export default function InvoiceNew() {
                       <div className="flex items-center sm:justify-end mt-2 sm:mt-0">
                         <label className="sm:hidden text-xs text-[var(--color-text-muted)] mr-2">Total:</label>
                         <span className="text-sm font-mono text-[var(--color-text-primary)]">
-                          {currencySymbol}{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {fmtMoney(lineTotal, form.currency)}
                         </span>
                       </div>
                       <div className="flex items-center justify-end mt-2 sm:mt-0">
@@ -413,60 +503,80 @@ export default function InvoiceNew() {
               <div className="flex flex-col gap-[16px]">
                 <div className="flex justify-between items-center py-2 border-b border-[var(--color-border)]">
                   <span className="text-sm text-[var(--color-text-secondary)]">Subtotal</span>
-                  <span className="font-mono text-[var(--color-text-primary)]">{currencySymbol}{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono text-[var(--color-text-primary)]">{fmtMoney(subtotal, form.currency)}</span>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-[16px]">
-                  <div className="mb-[16px]">
-                    <label htmlFor="tax_percent" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Tax %</label>
+                  <FieldShell
+                    className="mb-[16px]"
+                    label="Tax %"
+                    htmlFor="tax_percent"
+                    icon={Percent}
+                    error={fieldErrors.tax_percent}
+                    hint={`Tax: ${fmtMoney(taxAmount, form.currency)}`}
+                  >
                     <input type="number" id="tax_percent" value={form.tax_percent}
                       onChange={handleNumericChange('tax_percent')}
                       onBlur={handleNumericBlur('tax_percent')}
-                      className={`input-field h-[38px] w-full ${fieldErrors.tax_percent ? 'border-[var(--color-danger)]' : ''}`} min="0" max="100" step="0.1" />
-                    {fieldErrors.tax_percent && <p className="form-error">{fieldErrors.tax_percent}</p>}
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Tax: {currencySymbol}{taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                  </div>
-                  
-                  <div className="mb-[16px]">
-                    <label htmlFor="discount" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Discount</label>
+                      className={`input-field h-[38px] w-full pl-10 ${fieldErrors.tax_percent ? 'border-[var(--color-danger)]' : ''}`} min="0" max="100" step="0.1" />
+                  </FieldShell>
+                
+                  <FieldShell
+                    className="mb-[16px]"
+                    label="Discount"
+                    htmlFor="discount_type"
+                    error={fieldErrors.discount}
+                    hint={`Discount: ${fmtMoney(discountAmount, form.currency)}`}
+                  >
                     <div className="flex gap-2">
-                      <select value={form.discount_type} onChange={handleChange('discount_type')}
-                        className="input-field h-[38px] p-2 appearance-none cursor-pointer text-xs" id="discount_type">
-                        <option value="flat" className="bg-[var(--color-bg-secondary)]">{currencySymbol}</option>
-                        <option value="percent" className="bg-[var(--color-bg-secondary)]">%</option>
-                      </select>
+                      <div className="relative w-[68px] flex-shrink-0">
+                        <select value={form.discount_type} onChange={handleChange('discount_type')}
+                          className="input-field h-[38px] w-full appearance-none cursor-pointer pl-2 pr-6 text-xs font-semibold" id="discount_type">
+                          <option value="flat" className="bg-[var(--color-bg-secondary)]">{currencySymbol}</option>
+                          <option value="percent" className="bg-[var(--color-bg-secondary)]">%</option>
+                        </select>
+                        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                      </div>
                       <input type="number" id="discount" value={form.discount}
                         onChange={handleNumericChange('discount')}
                         onBlur={handleNumericBlur('discount')}
-                        className={`input-field h-[38px] w-full ${fieldErrors.discount ? 'border-[var(--color-danger)]' : ''}`} min="0" step="0.01" />
+                        className={`input-field h-[38px] w-full px-3 ${fieldErrors.discount ? 'border-[var(--color-danger)]' : ''}`} min="0" step="0.01" />
                     </div>
-                    {fieldErrors.discount && <p className="form-error">{fieldErrors.discount}</p>}
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">Discount: {currencySymbol}{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                  </div>
+                  </FieldShell>
                 </div>
 
                 <div className="flex justify-between items-center py-4 mt-2 px-4 rounded-xl bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
                   <span className="font-bold text-[var(--color-text-primary)]">Grand Total</span>
                   <span className="font-mono font-bold text-2xl text-[var(--color-accent)] tracking-tight">
-                    {currencySymbol}{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    {fmtMoney(grandTotal, form.currency)}
                   </span>
                 </div>
                 
                 <div className="grid grid-cols-1 gap-[16px]">
-                  <div className="mb-[16px]">
-                    <label htmlFor="payment_terms" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Payment Terms</label>
+                  <FieldShell
+                    className="mb-[16px]"
+                    label="Payment Terms"
+                    htmlFor="payment_terms"
+                    icon={CalendarDays}
+                    trailingIcon={ChevronDown}
+                  >
                     <select id="payment_terms" value={form.payment_terms} onChange={handleChange('payment_terms')}
-                      className="input-field h-[38px] w-full appearance-none cursor-pointer">
+                      className="input-field h-[38px] w-full appearance-none cursor-pointer pl-10 pr-10">
                       {PAYMENT_TERMS_OPTIONS.map(t => <option key={t} value={t} className="bg-[var(--color-bg-secondary)]">{t || '— Select —'}</option>)}
                     </select>
-                  </div>
-                  <div className="mb-[16px]">
-                    <label htmlFor="payment_method" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Payment Method</label>
+                  </FieldShell>
+                  <FieldShell
+                    className="mb-[16px]"
+                    label="Payment Method"
+                    htmlFor="payment_method"
+                    icon={CreditCard}
+                    trailingIcon={ChevronDown}
+                  >
                     <select id="payment_method" value={form.payment_method} onChange={handleChange('payment_method')}
-                      className="input-field h-[38px] w-full appearance-none cursor-pointer">
+                      className="input-field h-[38px] w-full appearance-none cursor-pointer pl-10 pr-10">
                       {PAYMENT_METHOD_OPTIONS.map(m => <option key={m} value={m} className="bg-[var(--color-bg-secondary)]">{m || '— Select —'}</option>)}
                     </select>
-                  </div>
+                  </FieldShell>
                 </div>
               </div>
             </div>
@@ -478,14 +588,19 @@ export default function InvoiceNew() {
                 Additional Options
               </h2>
               <div className="flex flex-col gap-[16px]">
-                <div className="mb-[16px]">
-                  <label htmlFor="status" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Initial Status</label>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Initial Status"
+                  htmlFor="status"
+                  icon={BadgeCheck}
+                  trailingIcon={ChevronDown}
+                >
                   <select id="status" value={form.status} onChange={handleChange('status')}
-                    className="input-field h-[38px] w-full appearance-none cursor-pointer">
+                    className="input-field h-[38px] w-full appearance-none cursor-pointer pl-10 pr-10">
                     <option value="pending" className="bg-[var(--color-bg-secondary)]">Pending</option>
                     <option value="paid" className="bg-[var(--color-bg-secondary)]">Paid</option>
                   </select>
-                </div>
+                </FieldShell>
                 
                 <div className="flex items-center gap-3 mb-[16px]">
                   <input type="checkbox" id="reminder_enabled" checked={form.reminder_enabled}
@@ -496,12 +611,16 @@ export default function InvoiceNew() {
                   </label>
                 </div>
                 
-                <div className="mb-[16px]">
-                  <label htmlFor="notes" className="text-[12px] font-medium text-[var(--color-text-muted)] mb-[6px] block">Notes</label>
+                <FieldShell
+                  className="mb-[16px]"
+                  label="Notes"
+                  htmlFor="notes"
+                  icon={FileText}
+                >
                   <textarea id="notes" value={form.notes} onChange={handleChange('notes')}
-                    className="input-field min-h-[100px] resize-y w-full"
+                    className="input-field min-h-[100px] resize-y w-full pl-10 pt-3"
                     placeholder="Additional notes or payment instructions..." rows={3} />
-                </div>
+                </FieldShell>
               </div>
             </div>
             </div>

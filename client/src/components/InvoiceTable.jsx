@@ -2,12 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import StatusBadge from './StatusBadge';
 import { Inbox, Plus, FileText } from 'lucide-react';
 
-const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', INR: '₹', GBP: '£' };
-
-function fmtMoney(amount, currency = 'INR') {
-  const sym = CURRENCY_SYMBOLS[currency] || '₹';
-  return `${sym}${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { fmtMoney } from '../lib/currency';
 
 function fmtDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -19,6 +14,25 @@ function fmtDate(dateStr) {
 
 function isOverdue(invoice) {
   return (invoice._displayStatus || invoice.status) === 'overdue';
+}
+
+function getDaysLeftInfo(dueDateStr, status) {
+  if (!dueDateStr || status === 'paid') return null;
+  const dueDate = new Date(dueDateStr);
+  dueDate.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const diffTime = dueDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    return { text: `${Math.abs(diffDays)} days overdue`, colorClass: 'text-red-600 font-medium text-xs mt-0.5' };
+  } else if (diffDays === 0) {
+    return { text: 'Due today', colorClass: 'text-[var(--color-accent)] font-medium text-xs mt-0.5' };
+  } else {
+    return { text: `${diffDays} days left`, colorClass: 'text-[#10b981] font-medium text-xs mt-0.5' };
+  }
 }
 
 export default function InvoiceTable({ invoices }) {
@@ -78,8 +92,14 @@ export default function InvoiceTable({ invoices }) {
                   <td className="text-sm text-[var(--color-text-secondary)]">
                     {invoice.issue_date ? fmtDate(invoice.issue_date) : '—'}
                   </td>
-                  <td className={`text-sm ${overdue ? 'text-red-600 font-medium' : 'text-[var(--color-text-secondary)]'}`}>
-                    {fmtDate(invoice.due_date)}
+                  <td className="text-sm">
+                    <div className={`${overdue ? 'text-red-600 font-medium' : 'text-[var(--color-text-secondary)]'}`}>
+                      {fmtDate(invoice.due_date)}
+                    </div>
+                    {(() => {
+                      const info = getDaysLeftInfo(invoice.due_date, displayStatus);
+                      return info ? <div className={info.colorClass}>{info.text}</div> : null;
+                    })()}
                   </td>
                   <td className="text-sm font-semibold text-[var(--color-text-primary)]">
                     {fmtMoney(invoice.grand_total, invoice.currency)}
@@ -122,9 +142,15 @@ export default function InvoiceTable({ invoices }) {
                 <StatusBadge status={displayStatus} />
               </div>
               <div className="flex justify-between items-end">
-                <span className={`text-xs ${overdue ? 'text-red-600 font-medium' : 'text-[var(--color-text-muted)]'}`}>
-                  Due {fmtDate(invoice.due_date)}
-                </span>
+                <div className="flex flex-col">
+                  <span className={`text-xs ${overdue ? 'text-red-600 font-medium' : 'text-[var(--color-text-muted)]'}`}>
+                    Due {fmtDate(invoice.due_date)}
+                  </span>
+                  {(() => {
+                    const info = getDaysLeftInfo(invoice.due_date, displayStatus);
+                    return info ? <span className={info.colorClass}>{info.text}</span> : null;
+                  })()}
+                </div>
                 <span className="font-semibold text-sm text-[var(--color-text-primary)]">
                   {fmtMoney(invoice.grand_total, invoice.currency)}
                 </span>

@@ -164,6 +164,9 @@ export default function Layout() {
               </div>
             </nav>
 
+            <div className="mt-auto p-6 text-xs text-[var(--color-text-muted)] font-medium">
+              &copy; {new Date().getFullYear()} PayRemind
+            </div>
           </div>
         )}
       </aside>
