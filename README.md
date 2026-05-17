@@ -259,7 +259,7 @@ Below are the interface placeholders representing the active application states:
 ## 👨‍💻 Author
 
 **K. Anish**
-* **Degree**: *Bachelor of Technology (B.Tech) in Computer Science & Engineering*
-* **College**: *The LNM Institute of Information Technology (LNMIIT), Jaipur*
+* **Degree**: *Bachelor of Technology (B.Tech) in Information Technology*
+* **College**: *Netaji University of Technology, Sector-3, Dwarka, Delhi*
 * **Email**: k.anish9461@gmail.com
 * **GitHub**: [@anish295](https://github.com/anish295)
